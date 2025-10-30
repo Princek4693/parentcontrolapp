@@ -1,5 +1,4 @@
-const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+const dotenv = require("dotenv")
 const express = require('express');
 const connectDB = require("./config/db")
 const cors = require('cors');
@@ -27,6 +26,7 @@ app.use('/api/auth', authRoutes);
 app.get('/', (req, res) => res.send('Server is running!'));
 
 // Connect to MongoDB
+dotenv.config();
 connectDB();
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

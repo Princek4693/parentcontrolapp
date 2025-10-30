@@ -1,9 +1,10 @@
 //logic for login , register
 const User = require('../models/User');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+
 
 exports.register = async (req, res) => {
     console.log(req.body)
@@ -24,26 +25,25 @@ exports.register = async (req, res) => {
 };
 
 exports.login = async (req, res) => {
-    console.log(req.body)
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
-    if (!user) return res.status(401).json({ message: 'Invalid credentials' });
 
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(401).json({ message: 'Invalid credentials' });
+    if (!user) return res.status(400).json({ message: "Invalid Email" });
 
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    const isMatch = await bcrypt.compare(password, user.password);
+    console.log("🧩 Compare:", isMatch);
 
+    if (!isMatch) return res.status(400).json({ message: "Invalid Password" });
+
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, role: user.role });
   } catch (err) {
+    console.error("Login Error:", err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
+
 
 
 exports.forgotPassword = async (req, res) => {
@@ -73,7 +73,7 @@ exports.forgotPassword = async (req, res) => {
     });
 
     // Create reset URL (your frontend link here)
-    const resetURL = `http://localhost:5173/reset-password/${resetToken}`;
+    const resetURL = `http://localhost:5174/reset-password/${resetToken}`;
     console.log(resetURL)
 
     // Send email (you can replace this with your actual email service)
@@ -101,9 +101,6 @@ exports.forgotPassword = async (req, res) => {
 exports.resetPassword = async (req, res) => {
   try {
     const resetToken = req.params.token;
-
-    // Hash token and find user
-    // const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
     const user = await User.findOne({
       resetPasswordToken: resetToken,
       resetPasswordExpire: { $gt: Date.now() },
@@ -113,16 +110,17 @@ exports.resetPassword = async (req, res) => {
       return res.status(400).json({ message: 'Invalid or expired token' });
     }
 
-    // Set new password
-    user.password = req.body.password;
+    // ✅ Hash the new password before saving
+    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+    user.password = hashedPassword;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
     await user.save();
 
     res.status(200).json({ message: 'Password reset successful' });
-
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server Error' });
   }
 };
+
